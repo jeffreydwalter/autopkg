@@ -516,6 +516,8 @@ class MunkiImporter(Processor):
         # adjust the installer_item_location to match the actual location
         # and name
         pkginfo["installer_item_location"] = relative_path
+        pkginfo["kace-url"] = self.env["url"]
+        pkginfo["kace-alt-url"] = self.env["match"]
 
         if self.env.get("uninstaller_pkg_path"):
             relative_uninstall_path = self.copy_item_to_repo(
