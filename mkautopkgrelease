@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+
+#####################################################################################################
+# QUEST SOFTWARE PROPRIETARY INFORMATION
+#
+# This software is confidential.  Quest Software Inc., or one of its
+# subsidiaries, has supplied this software to you under terms of a
+# license agreement, nondisclosure agreement or both.
+#
+# You may not copy, disclose, or use this software except in accordance with
+# those terms.
+#
+# Copyright 2018 Quest Software Inc.
+# ALL RIGHTS RESERVED.
+#
+# QUEST SOFTWARE INC. MAKES NO REPRESENTATIONS OR
+# WARRANTIES ABOUT THE SUITABILITY OF THE SOFTWARE,
+# EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+# TO THE IMPLIED WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE, OR
+# NON-INFRINGEMENT.  QUEST SOFTWARE SHALL NOT BE
+# LIABLE FOR ANY DAMAGES SUFFERED BY LICENSEE
+# AS A RESULT OF USING, MODIFYING OR DISTRIBUTING
+# THIS SOFTWARE OR ITS DERIVATIVES.
+#
+# Author: Jeff Walter
+# Date: Sept. 18, 2018
+# Description: This script builds the autopkg installer and uploads it as a tagged release to github.
+#####################################################################################################
+
+version=$1
+token=$2
+
+function die {
+    echo $1
+    exit
+}
+
+# Make sure we have a version number. This should be the NEXT version # and not the current one you want. Confusing right?!?
+[ -z "$version" ] && die "Version is required."
+
+# Make sure we can find the script that makes the release.
+[ ! -f "./Scripts/make_new_release.py" ] && die "Can't find Scripts/make_new_release.py!"
+
+# Get the token. I'm going through this trouble to keep the github token a secret, since this repository is public. The password is the one you would expect...
+# If the token changes, you'll need to update the hash below using: echo "new_token" | openssl aes-256-cbc -a -salt
+token=`echo "U2FsdGVkX194rRCuCHwk5yumqntpEoACFz2d9LgLT9OeqHuKS4u7+Lnea5VDmiL4i+jXcXCRIYjHxNIlPkl7Ig==" | openssl aes-256-cbc -a -d -salt`
+[ $? != 0 ] && die "Failed to decrypt token."
+
+# Commit any outstanding changes and make and upload the build to github.
+git add * && git commit -m "Auto-commit outstanding changes." && git push && sudo ./Scripts/make_new_release.py --next-version $version --token $token --user-repo jeffreydwalter/autopkg && git pull

@@ -15,6 +15,11 @@
 # limitations under the License.
 """See docstring for MunkiImporter class"""
 
+import base64
+import httplib
+import json
+import xml.etree.ElementTree as ET
+
 import os
 import subprocess
 import FoundationPlist
@@ -404,6 +409,57 @@ class MunkiImporter(Processor):
 
         return os.path.join(subdirectory, item_name)
 
+    def upload_pkginfo_to_kace(self, pkginfo_path):
+        if not os.path.exists(pkginfo_path):
+            raise ProcessorError(".plist file (%s) not found." % pkginfo_path)
+
+        pkginfo = ""
+        try:
+            f = open(pkginfo_path, "r")
+            pkginfo = f.read()
+            f.close()
+        except Exception as e:
+             raise ProcessorError("Failed to open plist file (%s)." % str(e))
+
+        kace_config = "/Users/Shared/kace.autopkg.conf"
+        if not os.path.exists(kace_config):
+            raise ProcessorError("Kace config file (%s) not found." % kace_config)
+
+        with open(kace_config) as conf_json:
+            try:
+                cfg = json.load(conf_json)
+            except Exception as e:
+                raise ProcessorError("Failed to parse KACE config file (%s - %s)." % (kace_config, str(e)))
+
+            if not cfg["host"] or not cfg["port"] or not cfg["protocol"] or not cfg["endpoint"] or not cfg["schema"]:
+                raise ProcessorError("Invalid KACE config file (%s)." % kace_config)
+
+            try:
+                if cfg["protocol"] == "http":
+                    conn = httplib.HTTPConnection(cfg["host"]+":"+cfg["port"])
+                elif cfg["protocol"] == "https":
+                    conn = httplib.HTTPSConnection(cfg["host"]+":"+cfg["port"])
+                else:
+                    raise ProcessorError("Invalid protocol (%s) in KACE config file (%s)." % (cfg["protocol"], kace_config))
+
+                body = cfg["schema"].replace("@FILE_DATA@", base64.b64encode(pkginfo))
+                headers = {"Content-type": "text/xml", "Accept": "text/xml"}
+                conn.request("POST", cfg["endpoint"], body, headers)
+
+                response = conn.getresponse()
+                if response.status != 200:
+                    raise ProcessorError("Failed to upload plist to KACE (%s - %s)." % (response.status, response.reason))
+
+                xml = response.read()
+                root = ET.fromstring(xml)
+                status = root[0][0][0].text
+                if not "success" in status:
+                    raise ProcessorError("Failed to upload plist to KACE (%s)." % status)
+
+                conn.close()
+            except Exception as e:
+                raise ProcessorError("Failed to upload plist to KACE (%s)." % str(e))
+
     def copy_pkginfo_to_repo(self, pkginfo):
         """Saves pkginfo to munki_repo_path/pkgsinfo/subdirectory.
         Returns full path to the pkginfo in the repo."""
@@ -516,8 +572,8 @@ class MunkiImporter(Processor):
         # adjust the installer_item_location to match the actual location
         # and name
         pkginfo["installer_item_location"] = relative_path
-        pkginfo["kace-url"] = self.env["url"]
-        pkginfo["kace-alt-url"] = self.env["match"]
+        pkginfo["kace-url"] = self.env.get("url", "")
+        pkginfo["kace-alt-url"] = self.env.get("match", "")
 
         if self.env.get("uninstaller_pkg_path"):
             relative_uninstall_path = self.copy_item_to_repo(
@@ -527,6 +583,10 @@ class MunkiImporter(Processor):
 
         # set output variables
         self.env["pkginfo_repo_path"] = self.copy_pkginfo_to_repo(pkginfo)
+
+        # Upload plist to KACE server.
+        self.upload_pkginfo_to_kace(self.env["pkginfo_repo_path"])
+
         self.env["pkg_repo_path"] = os.path.join(
             self.env["MUNKI_REPO"], "pkgs", relative_path)
         # update env["pkg_path"] to match env["pkg_repo_path"]
