@@ -48,4 +48,5 @@ token=`echo "U2FsdGVkX194rRCuCHwk5yumqntpEoACFz2d9LgLT9OeqHuKS4u7+Lnea5VDmiL4i+j
 [ $? != 0 ] && die "Failed to decrypt token."
 
 # Commit any outstanding changes and make and upload the build to github.
-git add * && git commit -m "Auto-commit outstanding changes." && git push && sudo ./Scripts/make_new_release.py --next-version $version --token $token --user-repo jeffreydwalter/autopkg && git pull
+git add * & git commit -m "Auto-commit outstanding changes." & git push
+sudo ./Scripts/make_new_release.py --next-version $version --token $token --user-repo jeffreydwalter/autopkg && git pull
