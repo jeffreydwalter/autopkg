@@ -1,3 +1,5 @@
+### [5223.0.2](https://github.com/jeffreydwalter/autopkg/compare/v5223.0.1...HEAD) (Unreleased)
+
 ### [5223.0.1](https://github.com/jeffreydwalter/autopkg/compare/v5223.0.0...v5223.0.1) (October 25, 2018)
 
 ### [5223.0.0](https://github.com/autopkg/autopkg/compare/v1.0.4...v5223.0.0) (October 19, 2018)
